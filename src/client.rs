@@ -1,4 +1,5 @@
 use crate::traits::{CompletionModel, EmbeddingModel};
+use rig::client::{CompletionClient, EmbeddingsClient};
 use rig::providers;
 
 #[derive(Clone)]
@@ -93,12 +94,12 @@ impl Client {
         embedding_model!(
             self, model, input_type,
             {
-                Azure, Gemini, OpenAI, Xai, Ollama, Together
+                Azure, Gemini, OpenAI, Ollama, Together
             },
             {
                 Anthropic, DeepSeek, Galadriel,
                 Groq, Hyperbolic, Moonshot, Perplexity,
-                Mira, HuggingFace, OpenRouter
+                Mira, HuggingFace, OpenRouter, Xai
             },
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
@@ -117,12 +118,12 @@ impl Client {
         embedding_model_with_ndims!(
             self, model, ndims, input_type,
             {
-                Azure, Gemini, OpenAI, Xai, Ollama, Together
+                Azure, Gemini, OpenAI, Ollama, Together
             },
             {
                 Anthropic, DeepSeek, Galadriel,
                 Groq, Hyperbolic, Moonshot, Perplexity,
-                Mira, HuggingFace, OpenRouter
+                Mira, HuggingFace, OpenRouter, Xai
             },
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
