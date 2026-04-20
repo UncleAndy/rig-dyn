@@ -1,6 +1,9 @@
-use crate::traits::{CompletionModel, EmbeddingModel};
+use crate::traits::{CompletionModel, EmbeddingModel, RigCompletionModelAdapter};
+use rig::client::FinalCompletionResponse;
 use rig::client::{CompletionClient, EmbeddingsClient};
+use rig::completion::{self, CompletionError, CompletionRequest, CompletionResponse};
 use rig::providers;
+use rig::streaming::StreamingCompletionResponse;
 
 #[derive(Clone)]
 pub enum Client {
@@ -21,6 +24,56 @@ pub enum Client {
     Perplexity(providers::perplexity::Client),
     Together(providers::together::Client),
     Xai(providers::xai::Client),
+}
+
+#[derive(Clone)]
+pub struct RigClientCompletionModelAdapter {
+    client: Client,
+    model: String,
+}
+
+impl completion::CompletionModel for RigClientCompletionModelAdapter {
+    type Response = ();
+    type StreamingResponse = FinalCompletionResponse;
+    type Client = Client;
+
+    fn make(client: &Self::Client, model: impl Into<String>) -> Self {
+        Self {
+            client: client.clone(),
+            model: model.into(),
+        }
+    }
+
+    fn completion(
+        &self,
+        request: CompletionRequest,
+    ) -> impl std::future::Future<Output = Result<CompletionResponse<Self::Response>, CompletionError>>
+           + rig::wasm_compat::WasmCompatSend {
+        let client = self.client.clone();
+        let model = self.model.clone();
+
+        async move {
+            let completion_model = Client::completion_model(&client, &model).await;
+            completion_model.completion(request).await
+        }
+    }
+
+    fn stream(
+        &self,
+        _request: CompletionRequest,
+    ) -> impl std::future::Future<
+        Output = Result<StreamingCompletionResponse<Self::StreamingResponse>, CompletionError>,
+    > + rig::wasm_compat::WasmCompatSend {
+        async {
+            Err(CompletionError::ResponseError(
+                "Streaming is not supported by rig_dyn::Client adapter".to_string(),
+            ))
+        }
+    }
+}
+
+impl CompletionClient for Client {
+    type CompletionModel = RigClientCompletionModelAdapter;
 }
 
 macro_rules! completion_model {
@@ -81,6 +134,11 @@ impl Client {
                 HuggingFace, OpenRouter, Mira, Together
             }
         )
+    }
+
+    /// Returns a completion model compatible with `rig::completion::CompletionModel`.
+    pub async fn rig_completion_model(&self, model: &str) -> RigCompletionModelAdapter {
+        RigCompletionModelAdapter::from(self.completion_model(model).await)
     }
 
     /// Returns an embedding model wrapper for the given provider and model name.

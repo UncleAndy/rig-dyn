@@ -3,10 +3,24 @@ use std::env;
 use anyhow::Result;
 use rig::{
     OneOrMany,
-    completion::CompletionRequest,
+    client::CompletionClient,
+    completion::{CompletionModel as RigCompletionModel, CompletionRequest},
     message::{self, Message},
 };
 use rig_dyn::Provider;
+
+async fn complete_with_rig_model<M>(model: &M, request: CompletionRequest) -> Result<String>
+where
+    M: RigCompletionModel,
+{
+    let response = model.completion(request).await?;
+    let content = match response.choice.first() {
+        message::AssistantContent::Text(content) => content.text.clone(),
+        _ => String::new(),
+    };
+
+    Ok(content)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,7 +28,7 @@ async fn main() -> Result<()> {
     // get api key from somewhere
     let api_key = env::var("OPENAI_API_KEY").unwrap();
     let client = provider.client(&api_key, None)?;
-    let completion_model = client.completion_model("gpt-4o").await;
+    let completion_model = CompletionClient::completion_model(&client, "gpt-4o");
 
     let request = CompletionRequest {
         model: None,
@@ -29,11 +43,8 @@ async fn main() -> Result<()> {
         tools: vec![],
     };
 
-    let response = completion_model.completion(request).await?.first();
-
-    if let message::AssistantContent::Text(content) = response {
-        println!("{}", content.text);
-    }
+    let response = complete_with_rig_model(&completion_model, request).await?;
+    println!("{}", response);
 
     Ok(())
 }
