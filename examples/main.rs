@@ -26,7 +26,7 @@ where
 async fn main() -> Result<()> {
     let provider = Provider::OpenAI;
     // get api key from somewhere
-    let api_key = env::var("OPENAI_API_KEY").unwrap();
+    let api_key = env::var("OPENAI_API_KEY").unwrap_or("".to_string());
     let client = provider.client(&api_key, None)?;
     let completion_model = CompletionClient::completion_model(&client, "gpt-4o");
 
