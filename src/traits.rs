@@ -6,6 +6,8 @@ use rig::{
     streaming::StreamingCompletionResponse,
 };
 use std::sync::Arc;
+use embeddings::EmbeddingModel;
+use rig::wasm_compat::WasmCompatSend;
 
 #[async_trait]
 pub trait DynEmbeddingModel: Send + Sync {
@@ -14,21 +16,71 @@ pub trait DynEmbeddingModel: Send + Sync {
     fn ndims(&self) -> usize;
 }
 
-#[async_trait]
-impl<T> DynEmbeddingModel for T
-where
-    T: embeddings::EmbeddingModel + Send + Sync,
-{
-    async fn embed_text(&self, input: &str) -> Result<Embedding, EmbeddingError> {
-        embeddings::EmbeddingModel::embed_text(self, input).await
-    }
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct RigEmbeddingModelAdapter {
+    inner: Arc<dyn DynEmbeddingModel>,
+}
 
-    async fn embed_texts(&self, input: Vec<String>) -> Result<Vec<Embedding>, EmbeddingError> {
-        embeddings::EmbeddingModel::embed_texts(self, input).await
+impl RigEmbeddingModelAdapter {
+    #[allow(dead_code)]
+    pub fn new(inner: Arc<dyn DynEmbeddingModel>) -> Self {
+        Self { inner }
+    }
+}
+
+impl From<Box<dyn DynEmbeddingModel>> for RigEmbeddingModelAdapter {
+    fn from(value: Box<dyn DynEmbeddingModel>) -> Self {
+        Self {
+            inner: Arc::from(value),
+        }
+    }
+}
+
+impl From<Arc<dyn DynEmbeddingModel>> for RigEmbeddingModelAdapter {
+    fn from(value: Arc<dyn DynEmbeddingModel>) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl EmbeddingModel for RigEmbeddingModelAdapter {
+    const MAX_DOCUMENTS: usize = 1000;
+    type Client = ();
+
+
+    fn make(_client: &Self::Client, _model: impl Into<String>, _dims: Option<usize>) -> Self {
+        panic!("make() is not supported by rig_dyn::EmbeddingModel adapter");
     }
 
     fn ndims(&self) -> usize {
-        embeddings::EmbeddingModel::ndims(self)
+        self.inner.ndims()
+    }
+
+    async fn embed_texts(&self, texts: impl IntoIterator<Item = String> + WasmCompatSend,) -> Result<Vec<Embedding>, EmbeddingError> {
+        let texts_vec: Vec<String> = texts.into_iter().collect();
+        self.inner.embed_texts(texts_vec).await
+    }
+
+    async fn embed_text(&self, input: &str) -> Result<Embedding, EmbeddingError> {
+        self.inner.embed_text(input).await
+    }
+}
+
+#[async_trait]
+impl<T> DynEmbeddingModel for T
+where
+    T: EmbeddingModel + Send + Sync,
+{
+    async fn embed_text(&self, input: &str) -> Result<Embedding, EmbeddingError> {
+        EmbeddingModel::embed_text(self, input).await
+    }
+
+    async fn embed_texts(&self, input: Vec<String>) -> Result<Vec<Embedding>, EmbeddingError> {
+        EmbeddingModel::embed_texts(self, input).await
+    }
+
+    fn ndims(&self) -> usize {
+        EmbeddingModel::ndims(self)
     }
 }
 
