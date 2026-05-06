@@ -8,14 +8,14 @@ use rig::{
 use std::sync::Arc;
 
 #[async_trait]
-pub trait EmbeddingModel: Send + Sync {
+pub trait DynEmbeddingModel: Send + Sync {
     async fn embed_text(&self, input: &str) -> Result<Embedding, EmbeddingError>;
     async fn embed_texts(&self, input: Vec<String>) -> Result<Vec<Embedding>, EmbeddingError>;
     fn ndims(&self) -> usize;
 }
 
 #[async_trait]
-impl<T> EmbeddingModel for T
+impl<T> DynEmbeddingModel for T
 where
     T: embeddings::EmbeddingModel + Send + Sync,
 {

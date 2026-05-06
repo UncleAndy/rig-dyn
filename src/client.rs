@@ -1,4 +1,4 @@
-use crate::traits::{CompletionModel, EmbeddingModel, RigCompletionModelAdapter};
+use crate::traits::{CompletionModel, DynEmbeddingModel, RigCompletionModelAdapter};
 use rig::client::FinalCompletionResponse;
 use rig::client::{CompletionClient, EmbeddingsClient};
 use rig::completion::{self, CompletionError, CompletionRequest, CompletionResponse};
@@ -148,7 +148,7 @@ impl Client {
         &self,
         model: &str,
         input_type: Option<&str>,
-    ) -> Option<Box<dyn EmbeddingModel>> {
+    ) -> Option<Box<dyn DynEmbeddingModel>> {
         embedding_model!(
             self, model, input_type,
             {
@@ -162,7 +162,7 @@ impl Client {
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
                     client.embedding_model(model, input_type)
-                ) as Box<dyn EmbeddingModel>
+                ) as Box<dyn DynEmbeddingModel>
             })
         )
     }
@@ -172,7 +172,7 @@ impl Client {
         model: &str,
         ndims: usize,
         input_type: Option<&str>,
-    ) -> Option<Box<dyn EmbeddingModel>> {
+    ) -> Option<Box<dyn DynEmbeddingModel>> {
         embedding_model_with_ndims!(
             self, model, ndims, input_type,
             {
@@ -186,7 +186,7 @@ impl Client {
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
                     client.embedding_model_with_ndims(model, input_type, ndims)
-                ) as Box<dyn EmbeddingModel>
+                ) as Box<dyn DynEmbeddingModel>
             })
         )
     }
