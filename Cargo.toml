@@ -1,24 +1,24 @@
 [package]
 name = "rig-dyn"
-authors = ["Gustavo Widman <admin@r3dlust.com>"]
+authors = ["Gustavo Widman <admin@r3dlust.com>", "Andrei Velikoredchanin <andy@andyhost.world>"]
 license = "MIT"
 description = "A dynamic client-provider abstraction framework for Rust applications on top of rig-core"
-repository = "https://github.com/GustavoWidman/rig-dyn"
-homepage = "https://github.com/GustavoWidman/rig-dyn"
-version = "0.3.0"
+repository = "https://github.com/UncleAndy/rig-dyn"
+homepage = "https://github.com/UncleAndy/rig-dyn"
+version = "1.0.1"
 edition = "2024"
 
 [dependencies]
 serde_plain = { version = "1.0.2", optional = true }
-anyhow = "1.0.97"
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
-rig-core = "0.11.0"
-async-trait = "0.1.87"
+anyhow = "1.0.102"
+serde = { version = "1.0.228", optional = true, features = ["derive"] }
+rig-core = "0.35.0"
+async-trait = "0.1.88"
 
 [features]
 serde = ["dep:serde", "dep:serde_plain"]
 
 [dev-dependencies]
-tokio = { version = "1.44.2", features = ["full"] }
+tokio = { version = "1.52.1", features = ["full"] }
 rig-dyn = { path = ".", features = ["serde"] }
 serde_plain = "1.0.2"

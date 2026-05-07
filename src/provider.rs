@@ -11,6 +11,7 @@ use rig::providers::{
     ollama as Ollama, openai as OpenAI, openrouter as OpenRouter, perplexity as Perplexity,
     together as Together, xai as Xai,
 };
+use rig::client::Nothing;
 
 use crate::client::Client;
 
@@ -159,20 +160,23 @@ macro_rules! provider_client {
             $(
                 Provider::$custom_url_variant => match $custom_url {
 					None => Client::$custom_url_variant(
-						$custom_url_variant::Client::new($api_key)
+						$custom_url_variant::Client::new($api_key)?
 					),
 					Some(url) => Client::$custom_url_variant(
-						$custom_url_variant::Client::from_url($api_key, url)
+						$custom_url_variant::Client::builder()
+							.api_key($api_key)
+							.base_url(url)
+							.build()?
 					),
 				},
             )*
             $(
                 Provider::$standard_variant => Client::$standard_variant(
-					$standard_variant::Client::new($api_key)
+					$standard_variant::Client::new($api_key)?
 				),
             )*
 			Provider::Anthropic => $anthropic_expr,
-			Provider::Azure => $azure_expr
+			Provider::Azure => $azure_expr,
 			Provider::Galadriel => $galadriel_expr,
 			Provider::Ollama => $ollama_expr,
             Provider::Mira => $mira_expr,
@@ -194,28 +198,43 @@ impl Provider {
             },
             match custom_url {
                 Some(url) => {
-                    Client::Azure(Azure::Client::new(AzureOpenAIAuth::Token(api_key.to_string()), "2024-10-21", url))
+                    Client::Azure(
+                        Azure::Client::builder()
+                            .api_key(AzureOpenAIAuth::Token(api_key.to_string()))
+                            .base_url(url)
+                            .build()?
+                    )
                 }
                 None => anyhow::bail!("Azure API requires a custom url"),
             },
             {
-                let builder = Anthropic::ClientBuilder::new(api_key);
+                let builder = Anthropic::Client::builder().api_key(api_key);
                 if let Some(url) = custom_url {
-                    Client::Anthropic(builder.base_url(url).build())
+                    Client::Anthropic(builder.base_url(url).build()?)
                 } else {
-                    Client::Anthropic(builder.build())
+                    Client::Anthropic(builder.build()?)
                 }
             },
             match custom_url {
-                None => Client::Galadriel(Galadriel::Client::new(api_key, None)),
+                None => Client::Galadriel(Galadriel::Client::new(api_key)?),
                 Some(url) => {
-                    Client::Galadriel(Galadriel::Client::from_url(api_key, url, None))
+                    Client::Galadriel(
+                        Galadriel::Client::builder()
+                            .api_key(api_key)
+                            .base_url(url)
+                            .build()?
+                    )
                 }
             },
             match custom_url {
-                None => Client::Ollama(Ollama::Client::new()),
+                None => Client::Ollama(Ollama::Client::new(Nothing)?),
                 Some(url) => {
-                    Client::Ollama(Ollama::Client::from_url(url))
+                    Client::Ollama(
+                        Ollama::Client::builder()
+                            .api_key(Nothing)
+                            .base_url(url)
+                            .build()?
+                    )
                 }
             },
             Client::Mira(Mira::Client::new(api_key)?)

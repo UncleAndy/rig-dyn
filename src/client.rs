@@ -1,5 +1,9 @@
-use crate::traits::{CompletionModel, EmbeddingModel};
+use crate::traits::{CompletionModel, DynEmbeddingModel, RigCompletionModelAdapter};
+use rig::client::FinalCompletionResponse;
+use rig::client::{CompletionClient, EmbeddingsClient};
+use rig::completion::{self, CompletionError, CompletionRequest, CompletionResponse};
 use rig::providers;
+use rig::streaming::StreamingCompletionResponse;
 
 #[derive(Clone)]
 pub enum Client {
@@ -20,6 +24,56 @@ pub enum Client {
     Perplexity(providers::perplexity::Client),
     Together(providers::together::Client),
     Xai(providers::xai::Client),
+}
+
+#[derive(Clone)]
+pub struct RigClientCompletionModelAdapter {
+    client: Client,
+    model: String,
+}
+
+impl completion::CompletionModel for RigClientCompletionModelAdapter {
+    type Response = ();
+    type StreamingResponse = FinalCompletionResponse;
+    type Client = Client;
+
+    fn make(client: &Self::Client, model: impl Into<String>) -> Self {
+        Self {
+            client: client.clone(),
+            model: model.into(),
+        }
+    }
+
+    fn completion(
+        &self,
+        request: CompletionRequest,
+    ) -> impl std::future::Future<Output = Result<CompletionResponse<Self::Response>, CompletionError>>
+           + rig::wasm_compat::WasmCompatSend {
+        let client = self.client.clone();
+        let model = self.model.clone();
+
+        async move {
+            let completion_model = Client::completion_model(&client, &model).await;
+            completion_model.completion(request).await
+        }
+    }
+
+    fn stream(
+        &self,
+        _request: CompletionRequest,
+    ) -> impl std::future::Future<
+        Output = Result<StreamingCompletionResponse<Self::StreamingResponse>, CompletionError>,
+    > + rig::wasm_compat::WasmCompatSend {
+        async {
+            Err(CompletionError::ResponseError(
+                "Streaming is not supported by rig_dyn::Client adapter".to_string(),
+            ))
+        }
+    }
+}
+
+impl CompletionClient for Client {
+    type CompletionModel = RigClientCompletionModelAdapter;
 }
 
 macro_rules! completion_model {
@@ -82,6 +136,11 @@ impl Client {
         )
     }
 
+    /// Returns a completion model compatible with `rig::completion::CompletionModel`.
+    pub async fn rig_completion_model(&self, model: &str) -> RigCompletionModelAdapter {
+        RigCompletionModelAdapter::from(self.completion_model(model).await)
+    }
+
     /// Returns an embedding model wrapper for the given provider and model name.
     /// Returns `None` if the provider does not support embeddings or
     /// if improper input type is provided (cohere requires a input type).
@@ -89,21 +148,21 @@ impl Client {
         &self,
         model: &str,
         input_type: Option<&str>,
-    ) -> Option<Box<dyn EmbeddingModel>> {
+    ) -> Option<Box<dyn DynEmbeddingModel>> {
         embedding_model!(
             self, model, input_type,
             {
-                Azure, Gemini, OpenAI, Xai, Ollama, Together
+                Azure, Gemini, OpenAI, Ollama, Together
             },
             {
                 Anthropic, DeepSeek, Galadriel,
                 Groq, Hyperbolic, Moonshot, Perplexity,
-                Mira, HuggingFace, OpenRouter
+                Mira, HuggingFace, OpenRouter, Xai
             },
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
                     client.embedding_model(model, input_type)
-                ) as Box<dyn EmbeddingModel>
+                ) as Box<dyn DynEmbeddingModel>
             })
         )
     }
@@ -113,21 +172,21 @@ impl Client {
         model: &str,
         ndims: usize,
         input_type: Option<&str>,
-    ) -> Option<Box<dyn EmbeddingModel>> {
+    ) -> Option<Box<dyn DynEmbeddingModel>> {
         embedding_model_with_ndims!(
             self, model, ndims, input_type,
             {
-                Azure, Gemini, OpenAI, Xai, Ollama, Together
+                Azure, Gemini, OpenAI, Ollama, Together
             },
             {
                 Anthropic, DeepSeek, Galadriel,
                 Groq, Hyperbolic, Moonshot, Perplexity,
-                Mira, HuggingFace, OpenRouter
+                Mira, HuggingFace, OpenRouter, Xai
             },
             |client: &providers::cohere::Client| input_type.map(|input_type| {
                 Box::new(
                     client.embedding_model_with_ndims(model, input_type, ndims)
-                ) as Box<dyn EmbeddingModel>
+                ) as Box<dyn DynEmbeddingModel>
             })
         )
     }
