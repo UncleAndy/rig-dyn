@@ -3,8 +3,8 @@ name = "rig-dyn"
 authors = ["Gustavo Widman <admin@r3dlust.com>", "Andrei Velikoredchanin <andy@andyhost.world>"]
 license = "MIT"
 description = "A dynamic client-provider abstraction framework for Rust applications on top of rig-core"
-repository = "https://github.com/UncleAndy/rig-dyn"
-homepage = "https://github.com/UncleAndy/rig-dyn"
+repository = "https://github.com/GustavoWidman/rig-dyn"
+homepage = "https://github.com/GustavoWidman/rig-dyn"
 version = "1.0.1"
 edition = "2024"
 

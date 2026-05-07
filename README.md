@@ -21,7 +21,7 @@ Add rig-dyn to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rig-dyn = "0.1.0"
+rig-dyn = "1.0.1"
 ```
 
 ## Usage
